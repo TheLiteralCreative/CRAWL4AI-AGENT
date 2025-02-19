@@ -9,21 +9,21 @@ import os
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.models.openai import OpenAIModel
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from supabase import Client
 from typing import List
 
 load_dotenv()
 
-llm = os.getenv('LLM_MODEL', 'gpt-4o-mini')
-model = OpenAIModel(llm)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-pro')
 
 logfire.configure(send_to_logfire='if-token-present')
 
 @dataclass
 class PydanticAIDeps:
     supabase: Client
-    openai_client: AsyncOpenAI
+    gemini_client: genai.GenerativeModel
 
 system_prompt = """
 You are an expert at Pydantic AI - a Python AI agent framework that you have access to all the documentation to,
@@ -46,14 +46,14 @@ pydantic_ai_expert = Agent(
     retries=2
 )
 
-async def get_embedding(text: str, openai_client: AsyncOpenAI) -> List[float]:
-    """Get embedding vector from OpenAI."""
+async def get_embedding(text: str, gemini_client: genai.GenerativeModel) -> List[float]:
+    """Get embedding vector from Gemini."""
     try:
-        response = await openai_client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
+        result = gemini_client.embed_content(
+            content=text,
+            task_type="retrieval_document"
         )
-        return response.data[0].embedding
+        return result['embedding']
     except Exception as e:
         print(f"Error getting embedding: {e}")
         return [0] * 1536  # Return zero vector on error
@@ -72,7 +72,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[PydanticAIDeps], user_
     """
     try:
         # Get the embedding for the query
-        query_embedding = await get_embedding(user_query, ctx.deps.openai_client)
+        query_embedding = await get_embedding(user_query, ctx.deps.gemini_client)
         
         # Query Supabase for relevant documents
         result = ctx.deps.supabase.rpc(
