@@ -4,17 +4,16 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 import logfire
 import asyncio
-import httpx
 import os
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.models.openai import OpenAIModel
 import google.generativeai as genai
-from supabase import Client
-from typing import List
+from supabase import Client, create_client
+from typing import List, Any
 
 load_dotenv()
 
+# Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-pro')
 
@@ -56,7 +55,7 @@ async def get_embedding(text: str, gemini_client: genai.GenerativeModel) -> List
         return result['embedding']
     except Exception as e:
         print(f"Error getting embedding: {e}")
-        return [0] * 1536  # Return zero vector on error
+        return [0] * 768  # Return zero vector on error for Gemini embedding
 
 @pydantic_ai_expert.tool
 async def retrieve_relevant_documentation(ctx: RunContext[PydanticAIDeps], user_query: str) -> str:
@@ -64,7 +63,7 @@ async def retrieve_relevant_documentation(ctx: RunContext[PydanticAIDeps], user_
     Retrieve relevant documentation chunks based on the query with RAG.
     
     Args:
-        ctx: The context including the Supabase client and OpenAI client
+        ctx: The context including the Supabase client and Gemini client
         user_query: The user's question or query
         
     Returns:

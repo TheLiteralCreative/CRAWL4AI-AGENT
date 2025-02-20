@@ -8,9 +8,9 @@ create table site_pages (
     chunk_number integer not null,
     title varchar not null,
     summary varchar not null,
-    content text not null,  -- Added content column
-    metadata jsonb not null default '{}'::jsonb,  -- Added metadata column
-    embedding vector(768),  -- Gemini text-embedding-004 embeddings are 768 dimensions
+    content text not null,
+    metadata jsonb not null default '{}'::jsonb,
+    embedding vector(768),  -- Gemini embedding dimension
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     
     -- Add a unique constraint to prevent duplicate chunks for the same URL
@@ -59,8 +59,6 @@ begin
 end;
 $$;
 
--- Everything above will work for any PostgreSQL database. The below commands are for Supabase security
-
 -- Enable RLS on the table
 alter table site_pages enable row level security;
 
@@ -69,4 +67,11 @@ create policy "Allow public read access"
   on site_pages
   for select
   to public
+  using (true);
+
+-- Create a policy that allows service role to insert
+create policy "Allow service role to insert"
+  on site_pages
+  for insert
+  to service_role
   using (true);

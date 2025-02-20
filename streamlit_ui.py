@@ -2,12 +2,11 @@ from __future__ import annotations
 from typing import Literal, TypedDict
 import asyncio
 import os
-
 import streamlit as st
 import json
 import logfire
-from supabase import Client
-from openai import AsyncOpenAI
+import google.generativeai as genai
+from supabase import Client, create_client
 
 # Import all the message part classes
 from pydantic_ai.messages import (
@@ -28,8 +27,12 @@ from pydantic_ai_expert import pydantic_ai_expert, PydanticAIDeps
 from dotenv import load_dotenv
 load_dotenv()
 
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-supabase: Client = Client(
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-pro')
+
+# Initialize Supabase client
+supabase: Client = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_SERVICE_KEY")
 )
@@ -73,7 +76,7 @@ async def run_agent_with_streaming(user_input: str):
     # Prepare dependencies
     deps = PydanticAIDeps(
         supabase=supabase,
-        openai_client=openai_client
+        gemini_client=gemini_model
     )
 
     # Run the agent in a stream
